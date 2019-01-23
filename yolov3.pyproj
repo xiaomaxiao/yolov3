@@ -23,6 +23,9 @@
     <Folder Include="tool\" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="model\loss.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="model\yolov3.py">
       <SubType>Code</SubType>
     </Compile>
@@ -33,6 +36,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="tool\pascal-voc.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="tool\preprocess.py">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
