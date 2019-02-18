@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{fd49e213-0abf-4473-bcbf-71f37c6f3563}</ProjectGuid>
     <ProjectHome />
-    <StartupFile>tool\pascal-voc.py</StartupFile>
+    <StartupFile>tool\metrics.py</StartupFile>
     <SearchPath />
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -33,6 +33,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="tool\kmeans.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="tool\metrics.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="tool\pascal-voc.py">
