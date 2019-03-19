@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{fd49e213-0abf-4473-bcbf-71f37c6f3563}</ProjectGuid>
     <ProjectHome />
-    <StartupFile>tool\metrics.py</StartupFile>
+    <StartupFile>model\generator.py</StartupFile>
     <SearchPath />
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -23,6 +23,12 @@
     <Folder Include="tool\" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="config.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="model\generator.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="model\loss.py">
       <SubType>Code</SubType>
     </Compile>
@@ -42,6 +48,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="tool\preprocess.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="utils.py">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>

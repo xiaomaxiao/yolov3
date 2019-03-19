@@ -37,35 +37,52 @@ def voc_eval(gtboxes,bboxes,overthreshold=0.5):
     '''
     计算单个类别的mAP
     Args:
-        gtboxes: the ground truth bounding boxes
-        bboxes:the predict bounding boxes 
+        gtboxes: the ground truth bounding boxes {'imagename':[[x1,x2,y1,y2],[.....]]}
+        bboxes:the predict bounding boxes {'imagename':[[x1,x2,y1,y2,confidence],[.....]]}
         overthreshold:mIou threshold default =0.5
     return :percision recall  AP
     '''
 
-    #sort by confidence 
-    confidence = bboxes[:,-1]
+    BB = []
+    imgnames = []
+
+    for k,v in bboxes.items():
+        for b in v:
+            BB.append(b)
+            imgnames.append(k)
+
+    #如果一个gtboxes 已经属于某个bboxes则标记为1，以后不参与IOU计算
+    det= {k:[0] * len(v) for k,v in gtboxes.items()}
+    
+
+    BB = np.array(BB)
+    imgnames = np.array(imgnames)
+
+    #sort by confidence   
+    confidence = BB[:,-1]
     sorted_ind = np.argsort(-confidence)
+    BB = BB[sorted_ind,:]
+    imgnames = imgnames[sorted_ind]
 
-    BB = bboxes[sorted_ind,:]
-
-    R = np.zeros(shape = (gtboxes.shape[0]))
     FP =  np.zeros(shape = (BB.shape[0]))
     TP = np.zeros_like(FP)
 
     for d in range(BB.shape[0]):
         #compute overlaps
         bb = BB[d]
-        ixmin = np.maximum(gtboxes[:,0],bb[0])
-        iymin = np.maximum(gtboxes[:,1],bb[1])
-        ixmax = np.minimum(gtboxes[:,2],bb[2])
-        iymax = np.minimum(gtboxes[:,3],bb[3])
+        R = det[imgnames[d]]
+        BBGT = gtboxes[imgnames[d]]
+        BBGT = np.array(BBGT)
+        ixmin = np.maximum(BBGT[:,0],bb[0])
+        iymin = np.maximum(BBGT[:,1],bb[1])
+        ixmax = np.minimum(BBGT[:,2],bb[2])
+        iymax = np.minimum(BBGT[:,3],bb[3])
         iw = np.maximum(ixmax - ixmin + 1.0,0.)
         ih = np.maximum(iymax - iymin + 1.0,0.)
         intersection = iw * ih 
 
         union =(bb[2]-bb[0]+1.0) * (bb[3]-bb[1]+1.0) + \
-            (gtboxes[:,2]-gtboxes[:,0]+1) * (gtboxes[:,3] -gtboxes[:,1]+1) - \
+            (BBGT[:,2]-BBGT[:,0]+1) * (BBGT[:,3] -BBGT[:,1]+1) - \
             intersection
 
         iou = intersection / union 
@@ -83,7 +100,11 @@ def voc_eval(gtboxes,bboxes,overthreshold=0.5):
     FP = np.cumsum(FP)
     TP = np.cumsum(TP)
     prec = TP / np.maximum(TP + FP,0.01)
-    rec = TP / np.maximum(gtboxes.shape[0] ,0.01)
+
+    num_gtboxes = 0
+    for k,v in gtboxes.items():
+        num_gtboxes +=len(v)
+    rec = TP / np.maximum(num_gtboxes ,0.01)
     ap = voc_ap(rec,prec)
     return prec, rec , ap 
 

@@ -14,7 +14,6 @@ def preprocess_true_boxes(true_boxes,input_shape,anchors,num_classes):
 
     Returns
         y_true: list of array, shape like yolo_outputs, xywh are reletive value
-
     '''
     assert(true_boxes[...,4] < num_classes).all(),'class id must be less than num_classes'
     num_layers = len(anchors)//3
@@ -30,7 +29,7 @@ def preprocess_true_boxes(true_boxes,input_shape,anchors,num_classes):
 
     #m 是batch_size比如为16
     m = true_boxes.shape[0]
-    #grid_shape是input_shape等比例降低，即[[13,13], [26,26], [52,52]]；
+    #grid_shape是input_shape等比例降低，如412的图 是[[13,13], [26,26], [52,52]]；
     grid_shapes = [input_shape // {0:32,1:16,2:8}[l] for l in range(num_layers)]
     #y_true是全0矩阵（np.zeros）列表，即[(16,13,13,3,6), (16,26,26,3,6), (16,52,52,3,6)]
     #这里还不知道len(anchor_mask)要干嘛
