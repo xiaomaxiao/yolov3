@@ -1,7 +1,7 @@
 
 import config 
 import numpy as np
-
+import threading
 class BatchIndices():
     def __init__(self,total,batchsize,trainable=True):
         self.n = total

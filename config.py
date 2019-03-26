@@ -2,9 +2,9 @@ import numpy as np
 
 #每层对应的anchor
 yolo_layer_anchor = {
-    0:[(10,13),(16,30),(33,23)],
-    1:[(30,61),(62,45),(59,119)],
-    2:[(116,90),(156,198),(373,326)]
+    0:[(19,31),(36,55),(40,29)],
+    1:[(52,15),(66,47),(70,103)],
+    2:[(86,30),(125,88),(161,51)]
     }
 
 #层数
@@ -14,7 +14,7 @@ anchors = []
 for layer in range(num_layers):
     anchors +=yolo_layer_anchor[layer]
 
-num_classes = 80
+num_classes = 5
 
 #anchor对应的哪一层的第几个
 """
@@ -30,8 +30,8 @@ num_classes = 80
  (373, 326): [2, 2]}
 """
 yolo_anchor_layerIndex = {}
-for layerindx,anchors in yolo_layer_anchor.items():
-    for id , anchor in enumerate(anchors):
+for layerindx,_anchors in yolo_layer_anchor.items():
+    for id , anchor in enumerate(_anchors):
         yolo_anchor_layerIndex[anchor] = [layerindx,id]
 
 ##训练图片大小h,w
@@ -46,3 +46,8 @@ stride = {
 
 #每层的feturemap size  y,x
 grid_shapes =lambda input_shape : [input_shape // stride[l] for l in range(num_layers)]
+
+
+#最大gt_boxes数量
+#固定gt_box的长度，算loss中iou的时候方便计算
+#max_boxes_num = 100

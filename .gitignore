@@ -1,2 +1,8 @@
 
 .vs/yolov3/v15/.suo
+*.pyc
+*.pyc
+*.h5
+*.hdf5
+*.DESKTOP-NAQHFD5
+*.pyc

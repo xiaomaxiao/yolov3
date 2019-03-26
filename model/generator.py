@@ -1,9 +1,14 @@
 import sys
-sys.path.insert(0,'C:\jianweidata\yolov3')
+sys.path.insert(0,'E:\yolov3')
 
 import config 
 import utils
 import numpy as np 
+import cv2
+import traceback
+
+def rand(a =0 ,b=1):
+    return np.random.rand()*(b-a) + a
 def preprocess_gt_boxes(gt_boxes,grid_shapes):
 
     """
@@ -22,6 +27,9 @@ def preprocess_gt_boxes(gt_boxes,grid_shapes):
 
     anchors  = np.array(config.anchors)
     orign_anchors = np.zeros((anchors.shape[0],4))
+
+    #print('anchors:',config.anchors)
+
     orign_anchors[:,2:4] = anchors[:][:]
     orign_anchors = utils.convert_boxes_to_origin(orign_anchors)
 
@@ -30,6 +38,9 @@ def preprocess_gt_boxes(gt_boxes,grid_shapes):
         #1.gt_box 最大iou的anchor
         iou = utils.cal_iou(ogt,orign_anchors) 
         best_anchor = anchors[np.argmax(iou,axis=-1)]
+
+        #print('gt_box:',gt_box,'ogt_box:',ogt,'best_anchor:',best_anchor,'o_anchors',orign_anchors)
+
         #2.iou最大的anchor 属于哪一层第几个
         lindx,aindx = config.yolo_anchor_layerIndex[tuple(best_anchor)]
         #3.gtbox在grid_shape中的位置和偏移量tx,ty
@@ -37,8 +48,8 @@ def preprocess_gt_boxes(gt_boxes,grid_shapes):
         py,px,ty,tx = utils.cal_box_offset_pos(gt_box,grid_shape)
         #4.计算 gt_center_x gt_centery gt_w , gt_h
         gt_w ,gt_h = (gt_box[2]-gt_box[0] , gt_box[3]-gt_box[1])
-        gt_center_x = (py + tx ) * stride 
-        gt_center_y = (py + ty ) * stride 
+        gt_center_x = (px + tx ) * grid_shape 
+        gt_center_y = (py + ty ) * grid_shape 
         assert gt_w>0 and  gt_h >0  ,r'gt_box w,h <0'
         #4.计算tw,th
         anchor_w , anchor_h  = best_anchor
@@ -51,87 +62,58 @@ def preprocess_gt_boxes(gt_boxes,grid_shapes):
         y_true[lindx][py,px,aindx,4:8] =(gt_center_x,gt_center_y,gt_w,gt_h)
         y_true[lindx][py,px,aindx,8] = 1
         y_true[lindx][py,px,aindx,9+cls] = 1
+        
+        #print('gt_box;',gt_box,gt_center_x,gt_center_y,gt_w,gt_h)
+
     return y_true
 
 def get_random_data(annotation_line, input_shape,itter=.2):
-    '''random preprocessing for real-time data augmentation'''
+    '''random preprocessing for real-time data augmentation
+       args: 
+           input_shape (h,w)  image shape for train
+    '''
     line = annotation_line.split()
     image = cv2.imread(line[0])
-    cbox = np.array([np.array(list(map(int,box.split(',')))) for box in line[1:]])
+    box = np.array([np.array(list(map(int,box.split(',')))) for box in line[1:]])
     w = image.shape[1]
     h = image.shape[0]
-    
-    box = np.array([])
-    cx1,cy1,cx2,cy2=(0,0,0,0)
-       
-    #随机缩放
-    scale = rand(1-itter,1+itter)
-    ih = int(input_shape[0]* scale)
-    iw = int(input_shape[1]*scale)
-    
-    #随机剪切
-    for i in range(1000):
-        box = np.copy(cbox)
-        cx1 = np.random.randint(0,w-iw)
-        cy1 = np.random.randint(0,h-ih)
-        
-        cx2 = cx1 + iw -1
-        cy2 = cy1 + ih -1
-
-        #过滤box
-        box[:,[0,2]]-=cx1
-        box[:,[1,3]]-=cy1
-        box[:, 0:2][box[:, 0:2]<0] = 0
-        box[:, 2][box[:, 2]>=iw] = iw-1
-        box[:, 3][box[:, 3]>=ih] = ih-1
-
-        a = box[:,0] >=0
-        b = box[:,1] >=0
-        c = box[:,2] <iw
-        d = box[:,3] <ih    
-        ##todo
-        ##根据不同的细胞类别决定最小尺寸   
-        e = (box[:,2] - box[:,0])>20
-        f = (box[:,3] - box[:,1])>20
-        box = box[a&b&c&d&e&f]
-        if(box.shape[0]>0):
-            break
-
-    image_data = image[cy1:cy2+1,cx1:cx2+1,:]
-    
+      
     flip = rand()
     if(flip>0.7):
         #左右翻转
-        image_data = image_data[:,::-1,:]
-        box[:,[0,2]] = iw - box[:,[2,0]]
+        image = image[:,::-1,:]
+        box[:,[0,2]] = w - box[:,[2,0]]
     elif (flip>0.4):
         #上下翻转
-        image_data = image_data[::-1,:,:]
-        box[:,[1,3]] = ih - box[:,[3,1]]
+        image = image[::-1,:,:]
+        box[:,[1,3]] = h - box[:,[3,1]]
                
     #resize 
-    image_data = cv2.resize(image_data,(input_shape[1],input_shape[0]),interpolation = cv2.INTER_CUBIC)
-    box[:,0:4] *= 1.0 /scale
-      
+    scaleh = 1.0 * h / input_shape[1]
+    scalew = 1.0 * w / input_shape[0]
+    image = cv2.resize(image,(input_shape[1],input_shape[0]),interpolation = cv2.INTER_CUBIC)
+    box = box.astype(np.float)
+    box[:,[0,2]] *= 1.0 /scalew
+    box[:,[1,3]] *= 1.0 /scaleh
+
     #bgr->rgb ->0-1
-    return image_data[:,:,::-1]/255.0, box
+    return image[:,:,::-1]/255.0, box
 
 class Generator():
-    def __init__(self,annotation_path,batch_size,shape,num_classes = 4, shuffle = True):
+    def __init__(self,annotation_path,batch_size,shape,num_classes = config.num_classes, shuffle = True):
         self.annotation_path = annotation_path 
-        self.lock = threading.Lock()
         self.batch_size = batch_size
         self.shuffle =  shuffle
         self.num_classes = num_classes
         self.lines = self.read_lines(self.annotation_path)
-        self.batch_idx = utils.BatchIndices(self.num_samples,self.batch_size,self.shuffle)
+        self.batch_idx = utils.BatchIndices(self.num_samples(),self.batch_size,self.shuffle)
         self.shape = shape 
 
     def num_classes(self):
         return self.num_classes
 
     def read_lines(self,annatation_path):
-        with open(annotation_path) as f:
+        with open(annatation_path) as f:
             lines = f.readlines()
         return lines 
 
@@ -139,25 +121,30 @@ class Generator():
         return len(self.lines)
 
     def __next__(self):
-        idx = next(self.batch_idx)
-        self.idx = idx
+        self.idx = next(self.batch_idx)
         try:
             bz = len(self.idx)
+            grid_shapes = config.grid_shapes(np.array(self.shape))
             imgs = np.zeros((bz,self.shape[0],self.shape[1],3))
-            ys_true = [] 
-            for id in self.idx:
-                img,box = get_random_data(self.annotation_line[id],self.shape)
-                y_true = preprocess_gt_boxes(box,config.grid_shapes(self.shape))
-                imgs[id] = img
-                ys_true.append(y_true)
-            return [imgs,*ys_true],np.zeros((batch_size))
+            ys_true =[np.zeros((bz,grid_shapes[l][0],grid_shapes[l][1], \
+            len(config.yolo_layer_anchor[l]), 4+4+1+self.num_classes),dtype=np.float) for l in range(config.num_layers)]
+            for i,id in enumerate(self.idx):
+                img,box = get_random_data(self.lines[id],self.shape)
+                y_true = preprocess_gt_boxes(box,grid_shapes)
+                imgs[i] = img
+                for l in range(config.num_layers):
+                    ys_true[l][i]= y_true[l]
+
+            return [imgs,*ys_true],np.zeros((bz))
         except Exception as e :
-            print(e,self.lines[idx])
-            self.__next__()
+            pass
+            #print(e,self.idx)
+            #traceback.print_exc()
+            #self.__next__()
 
 
-
-
+#gen = Generator( r'C:\dataset\jinnan2_round1_train_20190305\jinnan2_round1_train_20190305\restricted\train.txt',config.num_classes,(416,416))
+#a,b = next(gen)
 
 ##true_boxes = np.zeros((2,5))
 ##true_boxes[0] = [20,20,100,100,0]
